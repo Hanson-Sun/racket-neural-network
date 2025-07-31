@@ -7,13 +7,18 @@
 (require "matrix.rkt")
 (require "activations.rkt")
 
-
+(provide racket-network
+         racket-network-layers
+         racket-network-activations
+         racket-network-weights
+         racket-network-biases)
 (struct racket-network ([layers : (Vectorof Integer)]
 			[activations : (Vectorof (matrix -> matrix))]
                         [weights : (Vectorof matrix)]
                         [biases : (Vectorof matrix)])
   #:transparent)
 
+(provide make-racket-network)
 (define (make-racket-network [layers : (Vectorof Integer)]
 			     [activations : (Vectorof (matrix -> matrix))]
                              [min : Number -1]
@@ -34,6 +39,7 @@
   (racket-network layers activations weights biases))
 
 
+(provide racket-network-forward)
 (: racket-network-forward (racket-network matrix -> matrix))
 (define (racket-network-forward [nn : racket-network]
                                 [input : matrix])
@@ -54,8 +60,18 @@
 
   (forward-layer 0 input))
 
-(: racket-neural-network-backward (racket-network matrix -> Void))
-(define (racket-neural-network-backward [nn : racket-network]
+(provide racket-network-backward)
+(: racket-network-backward (racket-network matrix -> Void))
+(define (racket-network-backward [nn : racket-network]
                                         [error : matrix])
   ;; this is gonna be so grim
+  (void))
+
+
+(provide train)
+(define (train [nn : racket-network]
+               [inputs : (Vectorof matrix)]
+               [outputs : (Vectorof matrix)]
+               [epochs : Integer]
+               [batch-size : Integer])
   (void))
