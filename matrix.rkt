@@ -119,43 +119,49 @@
 
 ;; matmul (tears). Its the canonical matmul: a* (m1 * m2) + b)
 (provide matrix-matmul)
-(: matrix-matmul (matrix matrix Number Number -> matrix))
-(define (matrix-matmul [m1 : matrix]
-                       [m2 : matrix]
-                       [a : Number]
-                       [b : Number])
-  (define r1 (matrix-rows m1))
-  (define c1 (matrix-cols m1))
-  (define r2 (matrix-rows m2))
-  (define c2 (matrix-cols m2))
-  (unless (= c1 r2)
-    (error "matrix dims must match for matmul"))
+(: matrix-matmul
+   (case->
+     (-> matrix matrix matrix)
+     (-> matrix matrix Number matrix)
+     (-> matrix matrix Number Number matrix)))
+(define matrix-matmul
+  (case-lambda
+    [([m1 : matrix] [m2 : matrix])
+     (matrix-matmul m1 m2 (ann 1 Number) (ann 0 Number))]
+    [([m1 : matrix] [m2 : matrix] [a : Number])
+     (matrix-matmul m1 m2 a (ann 0 Number))]
+    [([m1 : matrix] [m2 : matrix] [a : Number] [b : Number])
+       (define r1 (matrix-rows m1))
+       (define c1 (matrix-cols m1))
+       (define r2 (matrix-rows m2))
+       (define c2 (matrix-cols m2))
+       (unless (= c1 r2)
+         (error "matrix dims must match for matmul"))
+       ;; recursive dot product of row i from m1 and column j from m2
+       (: dot-product (Integer Integer Integer -> Number))
+       (define (dot-product i j k)
+         (if (= k 0)
+             0
+             (+ (* (vector-ref (matrix-data m1) (+ (* i c1) (- k 1)))
+                   (vector-ref (matrix-data m2) (+ (* (- k 1) c2) j)))
+                (dot-product i j (- k 1)))))
 
-  ;; Recursive dot product of row i from m1 and column j from m2
-  (: dot-product (Integer Integer Integer -> Number))
-  (define (dot-product i j k)
-    (if (= k 0)
-        0
-        (+ (* (vector-ref (matrix-data m1) (+ (* i c1) (- k 1)))
-              (vector-ref (matrix-data m2) (+ (* (- k 1) c2) j)))
-           (dot-product i j (- k 1)))))
+       ;; Build the result matrix data vector
+       (define result-data
+         (build-vector (* r1 c2)
+                       (λ: ([i : Integer]) : Number
+                         (let ([row (quotient i c2)]
+                               [col (remainder i c2)])
+                           (+ (* a (dot-product row col c1)) b)))))
 
-  ;; Build the result matrix data vector
-  (define result-data
-    (build-vector (* r1 c2)
-      (λ: ([i : Integer]) : Number
-        (let ([row (quotient i c2)]
-              [col (remainder i c2)])
-          (+ (* a (dot-product row col c1)) b)))))
-
-  (make-matrix c2 r1 result-data))
+       (make-matrix c2 r1 result-data)]))
 
 
 
 (define A (make-matrix 3 2 #(1 2 3 4 5 6))) ; 2×3 matrix
 (define B (make-matrix 2 3 #(7 8 9 10 11 12))) ; 3×2 matrix
 
-(define C (matrix-matmul A B 1 0)) ; Expected: 2×2 matrix
+(define C (matrix-matmul A B)) ; Expected: 2×2 matrix
 (check-equal? (matrix-cols C) 2)
 (check-equal? (matrix-rows C) 2)
 (check-equal? (matrix-data C) #(58 64 139 154))
@@ -163,11 +169,11 @@
 (define I (make-matrix 2 2 #(1 0 0 1)))
 (define M (make-matrix 2 2 #(5 6 7 8)))
 
-(define R (matrix-matmul I M 1 0))
+(define R (matrix-matmul I M))
 (check-equal? (matrix-data R) #(5 6 7 8))
 
 (define M2 (make-matrix 2 2 #(1 2 3 4)))
-(define R2 (matrix-matmul M2 I 2 0))
+(define R2 (matrix-matmul M2 I 2))
 (check-equal? (matrix-data R2) #(2 4 6 8))
 
 

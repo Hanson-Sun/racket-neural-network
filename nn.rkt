@@ -34,25 +34,28 @@
   (racket-network layers activations weights biases))
 
 
-
-(define (racket-network-forward [nn : racket-network] [input : matrix])
+(: racket-network-forward (racket-network matrix -> matrix))
+(define (racket-network-forward [nn : racket-network]
+                                [input : matrix])
   (define weights (racket-network-weights nn))
   (define biases (racket-network-biases nn))
   (define activations (racket-network-activations nn))
-
   (define num-layers (vector-length weights))
 
-  (define (forward-layer [i : Integer] [a : matrix]) : matrix
+  (define (forward-layer [i : Integer] [m : matrix]) : matrix
     (if (= i num-layers)
-        a
+        m
         (let* ([w (vector-ref weights i)]
                [b (vector-ref biases i)]
                [act (vector-ref activations i)]
-               [z (matrix-matmul w a 1 0)]
-               [ones (make-matrix 1 (matrix-cols a)
-                                  (build-vector (matrix-cols a) (λ: ([j : Integer]) 1)))]
-               [z-b (matrix-matmul b ones 1 1)] ; broadcast bias
-               [a-next (act z-b)])
+               [z (matrix-elem (matrix-matmul w m) b +)]
+               [a-next (act z)])
           (forward-layer (+ i 1) a-next))))
 
   (forward-layer 0 input))
+
+(: racket-neural-network-backward (racket-network matrix -> Void))
+(define (racket-neural-network-backward [nn : racket-network]
+                                        [error : matrix])
+  ;; this is gonna be so grim
+  (void))
