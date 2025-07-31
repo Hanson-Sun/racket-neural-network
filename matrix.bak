@@ -1,60 +1,44 @@
 #lang typed/racket
 (require rackunit)
+
 (require/typed rackunit
   [check-equal? (-> Any Any Void)]
   [check-= (-> Number Number Number Void)])
-(require racket/random)
 
 
 
-(provide matrix
-         matrix-cols
-         matrix-rows
-         matrix-data)
+
+
+(print "hello world")
+
 (struct matrix ([cols : Integer]
                 [rows : Integer]
                 [data : (Vectorof Number)])
   #:transparent)
 
-(provide make-matrix-fill)
 (define (make-matrix-fill [cols : Integer]
-                          [rows : Integer]
-                          [fill : Integer])
+                     [rows : Integer]
+                     [fill : Integer])
   (matrix cols rows (make-vector (* cols rows) fill)))
 
-(provide make-matrix-random)
-(define (make-matrix-random [cols : Integer]
-                            [rows : Integer]
-                            [min : Number -1]
-                            [max : Number 1])
-  (define total (* cols rows))
-  (define data
-    (build-vector total (λ: ([i : Integer])
-                        (+ min (* (random) (- max min))))))
-  (matrix cols rows data))
-
-(provide make-matrix)
 (define (make-matrix [cols : Integer]
                      [rows : Integer]
                      [data : (Vectorof Number)])
   (matrix cols rows data))
 
 ;; get data vector index
-(provide matrix-index)
 (define (matrix-index [x : Integer]
                       [y : Integer]
                       [cols : Integer])
   (+ (* y cols) x))
 
 ;; get cell
-(provide matrix-get)
 (define (matrix-get [mat : matrix]
                     [x : Integer]
                     [y : Integer])
   (vector-ref (matrix-data mat) (matrix-index x y (matrix-cols mat))))
 
 ;; elementwise matrix op
-(provide matrix-elem)
 (: matrix-elem (matrix matrix (Number Number -> Number) -> matrix))
 (define (matrix-elem [m1 : matrix]
                      [m2 : matrix]
@@ -74,7 +58,6 @@
   (make-matrix cols rows result))
 
 ;; mat scalar multiplication
-(provide matrix-sm)
 (: matrix-sm (matrix Number -> matrix))
 (define (matrix-sm [m : matrix]
                    [s : Number])
@@ -87,7 +70,6 @@
 
 
 ;; transpose
-(provide matrix-transpose)
 (: matrix-transpose (matrix -> matrix))
 (define (matrix-transpose [m : matrix])
   (define cols (matrix-cols m))
@@ -118,7 +100,6 @@
 
 
 ;; matmul (tears). Its the canonical matmul: a* (m1 * m2) + b)
-(provide matrix-matmul)
 (: matrix-matmul (matrix matrix Number Number -> matrix))
 (define (matrix-matmul [m1 : matrix]
                        [m2 : matrix]
@@ -170,5 +151,67 @@
 (define R2 (matrix-matmul M2 I 2 0))
 (check-equal? (matrix-data R2) #(2 4 6 8))
 
+;; activations
+(: sigmoid (matrix -> matrix))
+(define (sigmoid m)
+  (define cols (matrix-cols m))
+  (define rows (matrix-rows m))
+  (define v (matrix-data m))
+  (make-matrix cols rows (build-vector (* cols rows) (λ: ([i : Integer])
+                                                       (define x (vector-ref v i))
+                                                       (/ 1 (+ 1 (exp (- x))))))))
+  
+(define m1 (make-matrix 1 1 #(0)))
+(define s1 (sigmoid m1))
+(check-equal? (matrix-cols s1) 1)
+(check-equal? (matrix-rows s1) 1)
+(check-= (vector-ref (matrix-data s1) 0) 0.5 1e-6)
+(define m2 (make-matrix 2 2 #(-1 0 1 2)))
+(define s2 (sigmoid m2))
+(define expected #(0.268941 0.5 0.731059 0.880797))
+
+(for ([i (in-range 4)])
+  (check-= (vector-ref (matrix-data s2) i)
+           (vector-ref expected i)
+           1e-5))
+
+
+
+(struct racket-network ([input-features : Integer]
+                        [output-features: Integer]
+                        [hidden-layers : (Vectorof Integer)]
+                        [weights: (Vectorof matrix)]
+                        [biases: (Vectorof matrix)]
+                        [activations: (Vectorof (matrix -> matrix))])
+  #:transparent)
+
+
+(define (racket-network-init [nn : racket-network])
+  
+  )
+
+
+
+(define (racket-network-forward [nn : racket-network] [input : matrix])
+  (define weights (racket-network-weights nn))
+  (define biases (racket-network-biases nn))
+  (define activations (racket-network-activations nn))
+
+  (define num-layers (vector-length weights))
+
+  (define (forward-layer [i : Integer] [a : matrix]) : matrix
+    (if (= i num-layers)
+        a
+        (let* ([w (vector-ref weights i)]
+               [b (vector-ref biases i)]
+               [act (vector-ref activations i)]
+               [z (matrix-matmul w a 1 0)]
+               [ones (make-matrix 1 (matrix-cols a)
+                                  (build-vector (matrix-cols a) (λ: ([j : Integer]) 1)))]
+               [z-b (matrix-matmul b ones 1 1)] ; broadcast bias
+               [a-next (act z-b)])
+          (forward-layer (+ i 1) a-next))))
+
+  (forward-layer 0 input))
 
 
