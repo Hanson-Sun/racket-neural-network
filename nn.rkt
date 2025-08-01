@@ -2,7 +2,7 @@
 (require rackunit)
 (require/typed rackunit
   [check-equal? (-> Any Any Void)]
-  [check-= (-> Number Number Number Void)])
+  [check-= (-> Real Real Real Void)])
 
 (require "matrix.rkt")
 (require "activations.rkt")
@@ -13,19 +13,19 @@
          racket-network-weights
          racket-network-biases)
 (struct racket-network ([layers : (Vectorof Integer)]
-			[activations : (Vectorof (matrix -> matrix))]
+			[activations : (Vectorof ActivationFn)]
                         [weights : (Vectorof matrix)]
                         [biases : (Vectorof matrix)])
   #:transparent)
 
 (provide make-racket-network)
 (define (make-racket-network [layers : (Vectorof Integer)]
-			     [activations : (Vectorof (matrix -> matrix))]
-                             [min : Number -1]
-                             [max : Number 1])
+			     [activations : (Vectorof ActivationFn)]
+                             [min : Real -1]
+                             [max : Real 1])
   (define len (vector-length layers))
   (unless (= len (vector-length activations)) 
-     (error "Number of activations must match the number of layers"))
+     (error "Real of activations must match the Real of layers"))
 
   (define weights (build-vector (- len 1) (λ: ([i : Integer])
                                       (make-matrix-random (vector-ref layers i)

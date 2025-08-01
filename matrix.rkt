@@ -2,7 +2,7 @@
 (require rackunit)
 (require/typed rackunit
   [check-equal? (-> Any Any Void)]
-  [check-= (-> Number Number Number Void)])
+  [check-= (-> Real Real Real Void)])
 (require racket/random)
 
 
@@ -13,7 +13,7 @@
          matrix-data)
 (struct matrix ([cols : Integer]
                 [rows : Integer]
-                [data : (Vectorof Number)])
+                [data : (Vectorof Real)])
   #:transparent)
 
 (provide make-matrix-fill)
@@ -25,8 +25,8 @@
 (provide make-matrix-random)
 (define (make-matrix-random [cols : Integer]
                             [rows : Integer]
-                            [min : Number -1]
-                            [max : Number 1])
+                            [min : Real -1]
+                            [max : Real 1])
   (define total (* cols rows))
   (define data
     (build-vector total (λ: ([i : Integer])
@@ -36,7 +36,7 @@
 (provide make-matrix)
 (define (make-matrix [cols : Integer]
                      [rows : Integer]
-                     [data : (Vectorof Number)])
+                     [data : (Vectorof Real)])
   (matrix cols rows data))
 
 ;; get data vector index
@@ -55,10 +55,10 @@
 
 ;; elementwise matrix op
 (provide matrix-elem)
-(: matrix-elem (matrix matrix (Number Number -> Number) -> matrix))
+(: matrix-elem (matrix matrix (Real Real -> Real) -> matrix))
 (define (matrix-elem [m1 : matrix]
                      [m2 : matrix]
-                     [func : (Number Number -> Number)])
+                     [func : (Real Real -> Real)])
   (define cols (matrix-cols m1))
   (define rows (matrix-rows m1))
   (define v1 (matrix-data m1))
@@ -75,9 +75,9 @@
 
 ;; mat scalar multiplication
 (provide matrix-sm)
-(: matrix-sm (matrix Number -> matrix))
+(: matrix-sm (matrix Real -> matrix))
 (define (matrix-sm [m : matrix]
-                   [s : Number])
+                   [s : Real])
   (define cols (matrix-cols m))
   (define rows (matrix-rows m))
   (define v (matrix-data m))
@@ -122,15 +122,15 @@
 (: matrix-matmul
    (case->
      (-> matrix matrix matrix)
-     (-> matrix matrix Number matrix)
-     (-> matrix matrix Number Number matrix)))
+     (-> matrix matrix Real matrix)
+     (-> matrix matrix Real Real matrix)))
 (define matrix-matmul
   (case-lambda
     [([m1 : matrix] [m2 : matrix])
-     (matrix-matmul m1 m2 (ann 1 Number) (ann 0 Number))]
-    [([m1 : matrix] [m2 : matrix] [a : Number])
-     (matrix-matmul m1 m2 a (ann 0 Number))]
-    [([m1 : matrix] [m2 : matrix] [a : Number] [b : Number])
+     (matrix-matmul m1 m2 (ann 1 Real) (ann 0 Real))]
+    [([m1 : matrix] [m2 : matrix] [a : Real])
+     (matrix-matmul m1 m2 a (ann 0 Real))]
+    [([m1 : matrix] [m2 : matrix] [a : Real] [b : Real])
        (define r1 (matrix-rows m1))
        (define c1 (matrix-cols m1))
        (define r2 (matrix-rows m2))
@@ -138,7 +138,7 @@
        (unless (= c1 r2)
          (error "matrix dims must match for matmul"))
        ;; recursive dot product of row i from m1 and column j from m2
-       (: dot-product (Integer Integer Integer -> Number))
+       (: dot-product (Integer Integer Integer -> Real))
        (define (dot-product i j k)
          (if (= k 0)
              0
@@ -149,7 +149,7 @@
        ;; Build the result matrix data vector
        (define result-data
          (build-vector (* r1 c2)
-                       (λ: ([i : Integer]) : Number
+                       (λ: ([i : Integer]) : Real
                          (let ([row (quotient i c2)]
                                [col (remainder i c2)])
                            (+ (* a (dot-product row col c1)) b)))))
