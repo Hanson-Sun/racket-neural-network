@@ -109,48 +109,66 @@
             b))))
   (make-matrix cols rows result-data))
 
-;; this is like canonical row-wise softmax
-;; i think i might make this colum-wise
+;; peculiar softmax function
 (provide softmax)
-(: softmax ActivationFn)
-(define (softmax m opt)
+(: softmax (-> matrix matrix))
+(define (softmax m)
+  (define n : Integer (matrix-rows m))
   (define cols : Integer (matrix-cols m))
-  (define rows : Integer (matrix-rows m))
+  (unless (= cols 1)
+    (error "softmax expects a single-column matrix (vector)"))
+
   (define input : (Vectorof Real) (matrix-data m))
 
+  ;; softmax max trick for numerical stability
+  (define max-val
+    (for/fold ([max-val : Real (vector-ref input 0)])
+              ([i : Integer (in-range n)])
+      (max max-val (vector-ref input i))))
+
+  ;; compute exp(x_i - max)
+  (define exp-v
+    (build-vector n
+                  (λ: ([i : Integer]) : Real
+                    (exp (- (vector-ref input i) max-val)))))
+
+  ;; sum of exponentials
+  (define sum-exp
+    (for/fold ([s : Real 0.0])
+              ([i : Integer (in-range n)])
+      (+ s (vector-ref exp-v i))))
+
+  ;; exp(x_i - max) / sum_exp
   (define output
-    (build-vector (* rows cols)
-      (λ: ([i : Integer]) : Real
-        (define row (quotient i cols))
-        (define col (remainder i cols))
+    (build-vector n
+                  (λ: ([i : Integer]) : Real
+                    (/ (vector-ref exp-v i) sum-exp))))
 
-        (define row-start (* row cols))
+  (make-matrix 1 n output))
 
-        ;; softmax max trick 
-        (define row-max
-          (for/fold ([max-val : Real (vector-ref input row-start)])
-                    ([j : Integer (in-range cols)])
-            (max max-val (vector-ref input (+ row-start j)))))
-
-        ;; exp(x - max)
-        (define exp-x
-          (exp (- (vector-ref input i) row-max)))
-
-        ;; sum of exp(x - max) for the row
-        (define row-sum
-          (for/fold ([s : Real 0.0])
-                    ([j : Integer (in-range cols)])
-            (+ s (exp (- (vector-ref input (+ row-start j)) row-max)))))
-
-        (/ exp-x row-sum))))
-
-  (make-matrix cols rows output))
 
 ;; yeah this is gonna suck
 (provide softmax-p)
-(: softmax-p ActivationFn)
-(define (softmax-p m opt)
-  (...))
+(: softmax-p (-> matrix matrix))
+(define (softmax-p m)
+  (define n : Integer (matrix-rows m))
+  (define cols : Integer (matrix-cols m))
+  (unless (= cols 1)
+    (error "softmax-p expects a single-column matrix (vector)"))
+
+  (define s : (Vectorof Real) (matrix-data m))
+
+  ;; n x n jacobian
+  (define jacobian-data
+    (build-vector (* n n)
+                  (λ: ([i : Integer]) : Real
+                    (define row (quotient i n))
+                    (define col (remainder i n))
+                    (define si (vector-ref s row))
+                    (define sj (vector-ref s col))
+                    (* si (if (= row col) (- 1 sj) (- 0 sj))))))
+
+  (make-matrix n n jacobian-data))
 
 (provide activation-derivatives)
 (: activation-derivatives (HashTable ActivationFn ActivationFn))
@@ -158,4 +176,5 @@
   (hash
     sigmoid sigmoid-p
     relu relu-p
-    leaky-relu leaky-relu-p))
+    leaky-relu leaky-relu-p
+    softmax softmax-p))
